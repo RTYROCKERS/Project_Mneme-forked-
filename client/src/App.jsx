@@ -1,7 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { useAuthStore } from '@/store/authStore';
+import { useThemeStore } from '@/store/themeStore';
 import Login from '@/pages/Login';
 import Register from '@/pages/Register';
 import Dashboard from '@/pages/Dashboard';
@@ -25,6 +27,9 @@ function PublicRoute({ children }) {
 }
 
 export default function App() {
+  const { apply } = useThemeStore();
+  useEffect(() => { apply(); }, [apply]);
+
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>

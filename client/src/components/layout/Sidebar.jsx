@@ -1,7 +1,8 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Brain, LayoutDashboard, BookOpen, Lightbulb, BarChart3, LogOut } from 'lucide-react';
+import { Brain, LayoutDashboard, BookOpen, BarChart3, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -60,6 +61,7 @@ export function Sidebar() {
             <p className="truncate text-xs font-medium text-[var(--text-primary)]">{user?.name}</p>
             <p className="truncate text-xs text-[var(--text-muted)]">{user?.email}</p>
           </div>
+          <ThemeToggle />
           <button
             onClick={handleLogout}
             className="text-[var(--text-muted)] hover:text-[var(--danger)] transition-colors"
