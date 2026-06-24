@@ -85,7 +85,7 @@ export default function Dashboard() {
               <div className="flex justify-center py-8"><Spinner /></div>
             ) : recommendations.length === 0 ? (
               <p className="text-sm text-[var(--text-muted)] py-4 text-center">
-                Add topics and resources to get recommendations
+                Add a topic and generate concepts to get recommendations
               </p>
             ) : (
               <ul className="space-y-3">
@@ -129,7 +129,7 @@ export default function Dashboard() {
                   <li key={t.id} className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-[var(--text-primary)] truncate">{t.name}</p>
-                      <p className="text-xs text-[var(--text-muted)]">{t.concept_count} concepts · {t.resource_count} resources</p>
+                      <p className="text-xs text-[var(--text-muted)]">{t.concept_count} concepts</p>
                     </div>
                     <Badge variant={t.depth_level}>{t.depth_level}</Badge>
                   </li>

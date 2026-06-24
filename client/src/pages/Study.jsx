@@ -7,8 +7,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Progress } from '@/components/ui/Progress';
 import { Spinner } from '@/components/ui/Spinner';
 import { useAuthStore } from '@/store/authStore';
-import api from '@/lib/api';
-
+import api, { getErrorMessage } from '@/lib/api';
 // ── Quiz component ─────────────────────────────────────────────
 function QuizView({ content, conceptId, onDone }) {
   const qc = useQueryClient();
@@ -170,6 +169,98 @@ function RevisionView({ content, conceptId, onDone }) {
   );
 }
 
+// ── Warm-up quiz (interleaved questions from OTHER concepts) ───
+function WarmupQuiz({ questions, onComplete }) {
+  const [current, setCurrent] = useState(0);
+  const [selected, setSelected] = useState(null);
+  const [answered, setAnswered] = useState(false);
+  const [correct, setCorrect] = useState(0);
+
+  const q = questions[current];
+  if (!q) return null;
+
+  const handleAnswer = (idx) => {
+    if (answered) return;
+    setSelected(idx);
+    setAnswered(true);
+    if (idx === q.correct_index) setCorrect((c) => c + 1);
+  };
+
+  const handleNext = () => {
+    if (current + 1 < questions.length) {
+      setCurrent((c) => c + 1);
+      setSelected(null);
+      setAnswered(false);
+    } else {
+      onComplete(correct, questions.length);
+    }
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2">
+        <p className="text-xs font-medium text-[var(--accent)]">Warm-up · retrieval practice</p>
+        <p className="text-xs text-[var(--text-muted)] mt-0.5">
+          A few quick questions on earlier concepts before today's revision.
+        </p>
+      </div>
+
+      <div className="flex items-center justify-between text-sm text-[var(--text-muted)]">
+        <span>Warm-up {current + 1} of {questions.length}</span>
+        {q.concept_name && <Badge variant="muted">{q.concept_name}</Badge>}
+      </div>
+      <Progress value={current / questions.length} colorClass="bg-[var(--accent)]" />
+
+      <p className="text-sm font-medium text-[var(--text-primary)] leading-relaxed">{q.question}</p>
+
+      <div className="space-y-2">
+        {q.options.map((opt, idx) => {
+          let color = 'border-[var(--border)] text-[var(--text-primary)] hover:border-[var(--accent)] hover:bg-[var(--accent-dim)]';
+          if (answered) {
+            if (idx === q.correct_index) color = 'border-[var(--success)] bg-[rgba(76,175,140,0.1)] text-[var(--success)]';
+            else if (idx === selected) color = 'border-[var(--danger)] bg-[rgba(229,107,111,0.1)] text-[var(--danger)]';
+            else color = 'border-[var(--border)] text-[var(--text-muted)] opacity-50';
+          }
+          return (
+            <button
+              key={idx}
+              className={`text-left w-full rounded-lg border px-4 py-3 text-sm transition-all cursor-pointer ${color}`}
+              onClick={() => handleAnswer(idx)}
+            >
+              {opt}
+            </button>
+          );
+        })}
+      </div>
+
+      {answered && (
+        <div className="rounded-lg bg-[var(--bg-elevated)] p-3 space-y-2">
+          {q.explanation && (
+            <>
+              <p className="text-xs font-medium text-[var(--text-muted)]">Explanation</p>
+              <p className="text-sm text-[var(--text-primary)]">{q.explanation}</p>
+            </>
+          )}
+          <Button size="sm" onClick={handleNext}>
+            {current + 1 < questions.length ? 'Next' : 'Start revision'} <ChevronRight size={14} />
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Revision session = optional warm-up, then revision content ──
+function RevisionSession({ content, conceptId, onDone }) {
+  const warmup = content.warmup_questions || [];
+  const [phase, setPhase] = useState(warmup.length > 0 ? 'warmup' : 'revision');
+
+  if (phase === 'warmup') {
+    return <WarmupQuiz questions={warmup} onComplete={() => setPhase('revision')} />;
+  }
+  return <RevisionView content={content} conceptId={conceptId} onDone={onDone} />;
+}
+
 // ── Main Study page ────────────────────────────────────────────
 export default function Study() {
   const { user } = useAuthStore();
@@ -219,12 +310,12 @@ export default function Study() {
                 <p className="text-sm text-[var(--text-muted)]">Generating {mode} content…</p>
               </div>
             ) : generateContent.isError ? (
-              <p className="text-sm text-[var(--danger)]">Failed to generate content. Check your OpenAI key.</p>
+              <p className="text-sm text-[var(--danger)]">{getErrorMessage(generateContent.error, 'Failed to generate content. Please try again.')}</p>
             ) : activeContent ? (
               mode === 'quiz'
                 ? <QuizView content={activeContent} conceptId={activeConcept.concept_id}
                     onDone={() => { setActiveConcept(null); setMode(null); qc.invalidateQueries({ queryKey: ['recommendations'] }); }} />
-                : <RevisionView content={activeContent} conceptId={activeConcept.concept_id}
+                : <RevisionSession content={activeContent} conceptId={activeConcept.concept_id}
                     onDone={() => { setActiveConcept(null); setMode(null); qc.invalidateQueries({ queryKey: ['recommendations'] }); }} />
             ) : null}
           </CardContent>

@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Brain, LayoutDashboard, BookOpen, BarChart3, LogOut } from 'lucide-react';
+import { Brain, LayoutDashboard, BookOpen, BarChart3, LogOut, UserCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
@@ -9,6 +9,7 @@ const navItems = [
   { to: '/topics',    icon: BookOpen,        label: 'Topics' },
   { to: '/study',     icon: Brain,           label: 'Study' },
   { to: '/stats',     icon: BarChart3,       label: 'Progress' },
+  { to: '/profile',   icon: UserCircle,      label: 'Profile' },
 ];
 
 export function Sidebar() {

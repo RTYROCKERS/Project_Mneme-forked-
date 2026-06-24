@@ -129,7 +129,7 @@ export default function Topics() {
                     <p className="text-xs text-[var(--text-muted)] mt-0.5 truncate">{t.description}</p>
                   )}
                   <p className="text-xs text-[var(--text-muted)] mt-1">
-                    {t.concept_count} concepts · {t.resource_count} resources
+                    {t.concept_count} concepts
                   </p>
                 </div>
 

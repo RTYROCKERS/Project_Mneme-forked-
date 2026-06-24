@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS users (
   name VARCHAR(255) NOT NULL,
   email VARCHAR(255) UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
+  profile_description TEXT,                       -- learner's point of view / ability / goals (sent to AI)
+  profile JSONB NOT NULL DEFAULT '{}'::jsonb,     -- structured learner profile
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -94,6 +96,23 @@ CREATE TABLE IF NOT EXISTS recommendation_log (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Reusable quiz question bank. Questions are generated alongside revision
+-- sessions and re-served later as interleaved warm-ups for OTHER concepts.
+CREATE TABLE IF NOT EXISTS quiz_questions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  concept_id UUID NOT NULL REFERENCES concepts(id) ON DELETE CASCADE,
+  topic_id UUID REFERENCES topics(id) ON DELETE CASCADE,
+  question TEXT NOT NULL,
+  options JSONB NOT NULL,
+  correct_index INT NOT NULL,
+  explanation TEXT,
+  difficulty_level VARCHAR(50) DEFAULT 'intermediate',
+  times_served INT DEFAULT 0,
+  last_served_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_topics_user_id ON topics(user_id);
 CREATE INDEX IF NOT EXISTS idx_resources_topic_id ON resources(topic_id);
@@ -103,3 +122,5 @@ CREATE INDEX IF NOT EXISTS idx_mastery_concept_id ON mastery_records(concept_id)
 CREATE INDEX IF NOT EXISTS idx_quiz_user_concept ON quiz_attempts(user_id, concept_id);
 CREATE INDEX IF NOT EXISTS idx_content_concept_type ON generated_content(concept_id, type);
 CREATE INDEX IF NOT EXISTS idx_reco_user_id ON recommendation_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_quiz_questions_user ON quiz_questions(user_id);
+CREATE INDEX IF NOT EXISTS idx_quiz_questions_concept ON quiz_questions(concept_id);

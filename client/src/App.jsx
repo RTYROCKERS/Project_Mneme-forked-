@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useAuthStore } from '@/store/authStore';
 import { useThemeStore } from '@/store/themeStore';
 import Login from '@/pages/Login';
@@ -11,6 +12,7 @@ import Topics from '@/pages/Topics';
 import TopicDetail from '@/pages/TopicDetail';
 import Study from '@/pages/Study';
 import Stats from '@/pages/Stats';
+import Profile from '@/pages/Profile';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -32,21 +34,25 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login"    element={<PublicRoute><Login /></PublicRoute>} />
-          <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
-          <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-            <Route path="/dashboard"    element={<Dashboard />} />
-            <Route path="/topics"       element={<Topics />} />
-            <Route path="/topics/:id"   element={<TopicDetail />} />
-            <Route path="/study"        element={<Study />} />
-            <Route path="/stats"        element={<Stats />} />
-          </Route>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </BrowserRouter>
+      <ErrorBoundary>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login"    element={<PublicRoute><Login /></PublicRoute>} />
+            <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+            <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+              <Route path="/dashboard"    element={<Dashboard />} />
+              <Route path="/topics"       element={<Topics />} />
+              <Route path="/topics/:id"   element={<TopicDetail />} />
+              <Route path="/study"        element={<Study />} />
+              <Route path="/stats"        element={<Stats />} />
+              <Route path="/profile"      element={<Profile />} />
+            </Route>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            {/* Unknown routes (e.g. a stale deep link after reload) fall back gracefully */}
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </ErrorBoundary>
     </QueryClientProvider>
   );
 }

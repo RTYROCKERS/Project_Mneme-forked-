@@ -4,7 +4,7 @@ import { Brain } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuthStore } from '@/store/authStore';
-import api from '@/lib/api';
+import api, { getErrorMessage } from '@/lib/api';
 
 export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' });
@@ -22,7 +22,7 @@ export default function Login() {
       setAuth(data.user, data.token);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.error || 'Login failed');
+      setError(getErrorMessage(err, 'Login failed. Please check your email and password.'));
     } finally {
       setLoading(false);
     }

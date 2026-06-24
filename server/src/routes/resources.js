@@ -4,6 +4,7 @@ const pool = require('../config/db');
 const auth = require('../middleware/auth');
 const cloudinary = require('../config/cloudinary');
 const { extractConcepts } = require('../engines/knowledgeEngine');
+const { formatUserProfile } = require('../utils/profile');
 
 const router = express.Router();
 
@@ -118,7 +119,14 @@ router.post('/:id/process', auth, async (req, res, next) => {
 
     if (!content) return res.status(400).json({ error: 'No content to process' });
 
-    const concepts = await extractConcepts(content, r.topic_name, r.depth_level, r.learning_goal);
+    // Load learner profile so extraction is personalized
+    const profileResult = await pool.query(
+      'SELECT profile_description, profile FROM users WHERE id = $1',
+      [req.user.id]
+    );
+    const userProfile = formatUserProfile(profileResult.rows[0]);
+
+    const concepts = await extractConcepts(content, r.topic_name, r.depth_level, r.learning_goal, userProfile);
 
     // Insert concepts (skip duplicates by name within same topic)
     const inserted = [];

@@ -4,7 +4,7 @@ import { Brain } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuthStore } from '@/store/authStore';
-import api from '@/lib/api';
+import api, { getErrorMessage } from '@/lib/api';
 
 export default function Register() {
   const [form, setForm] = useState({ name: '', email: '', password: '' });
@@ -25,7 +25,7 @@ export default function Register() {
       setAuth(data.user, data.token);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.error || 'Registration failed');
+      setError(getErrorMessage(err, 'Registration failed. Please try again.'));
     } finally {
       setLoading(false);
     }
