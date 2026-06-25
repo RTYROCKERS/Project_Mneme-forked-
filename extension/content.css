@@ -1,0 +1,88 @@
+/* Mneme in-page toast — scoped, unobtrusive, dark. */
+.mneme-toast {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 2147483647;
+  width: 340px;
+  max-width: calc(100vw - 40px);
+  box-sizing: border-box;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #161b27;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  color: #e8eaf0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+.mneme-toast.mneme-in { opacity: 1; transform: translateY(0); }
+.mneme-toast.mneme-leaving { opacity: 0; transform: translateY(12px); }
+
+.mneme-toast .mneme-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.mneme-toast .mneme-brain { font-size: 14px; }
+.mneme-toast .mneme-title {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #6c8cff;
+}
+.mneme-toast .mneme-strength {
+  margin-left: auto;
+  font-size: 11px;
+  color: #8b9cb5;
+}
+.mneme-toast .mneme-x {
+  background: none;
+  border: none;
+  color: #8b9cb5;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+.mneme-toast .mneme-x:hover { color: #e8eaf0; }
+
+.mneme-toast .mneme-card {
+  color: #e8eaf0;
+  margin-bottom: 6px;
+}
+.mneme-toast .mneme-why {
+  color: #8b9cb5;
+  font-size: 11.5px;
+  font-style: italic;
+  margin-bottom: 12px;
+}
+
+.mneme-toast .mneme-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.mneme-toast .mneme-btn {
+  flex: 1;
+  padding: 7px 10px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #1e2536;
+  color: #e8eaf0;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.mneme-toast .mneme-knew { background: rgba(108, 140, 255, 0.15); color: #6c8cff; border-color: transparent; }
+.mneme-toast .mneme-knew:hover { background: #6c8cff; color: #fff; }
+.mneme-toast .mneme-forgot:hover { background: #1e2536; color: #e5a456; }
+.mneme-toast .mneme-done {
+  color: #4caf8c;
+  font-size: 12.5px;
+}

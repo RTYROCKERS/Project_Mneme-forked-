@@ -8,6 +8,7 @@ import { useThemeStore } from '@/store/themeStore';
 import Login from '@/pages/Login';
 import Register from '@/pages/Register';
 import Dashboard from '@/pages/Dashboard';
+import ControlCenter from '@/pages/ControlCenter';
 import Topics from '@/pages/Topics';
 import TopicDetail from '@/pages/TopicDetail';
 import Study from '@/pages/Study';
@@ -41,6 +42,7 @@ export default function App() {
             <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
             <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
               <Route path="/dashboard"    element={<Dashboard />} />
+              <Route path="/mneme"        element={<ControlCenter />} />
               <Route path="/topics"       element={<Topics />} />
               <Route path="/topics/:id"   element={<TopicDetail />} />
               <Route path="/study"        element={<Study />} />

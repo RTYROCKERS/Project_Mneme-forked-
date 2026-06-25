@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Mneme — personal memory agent",
+  "version": "0.1.0",
+  "description": "Observe what matters, jog what's fading. Mneme watches the pages you read and quietly resurfaces your own knowledge at the right moment.",
+  "permissions": ["storage", "tabs", "alarms"],
+  "host_permissions": ["http://localhost:5000/*", "http://127.0.0.1:5000/*"],
+  "background": { "service_worker": "background.js" },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Mneme"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ]
+}

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    :root {
+      --bg: #0f1117; --surface: #161b27; --elevated: #1e2536;
+      --border: rgba(255,255,255,0.08); --text: #e8eaf0; --muted: #8b9cb5;
+      --accent: #6c8cff; --accent-dim: rgba(108,140,255,0.15);
+      --success: #4caf8c; --danger: #e56b6f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      width: 300px; margin: 0; padding: 16px;
+      background: var(--bg); color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px; line-height: 1.5;
+    }
+    .brand { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+    .brand .logo {
+      width: 26px; height: 26px; border-radius: 8px; background: var(--accent-dim);
+      display: flex; align-items: center; justify-content: center; font-size: 14px;
+    }
+    .brand .name { font-weight: 600; letter-spacing: 0.02em; }
+    .brand .tag { margin-left: auto; font-size: 10.5px; color: var(--muted); }
+    label { display: block; font-size: 11px; color: var(--muted); margin: 8px 0 4px; }
+    input {
+      width: 100%; height: 32px; padding: 0 10px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--elevated); color: var(--text);
+      font-size: 13px; outline: none;
+    }
+    input:focus { border-color: var(--accent); }
+    button {
+      width: 100%; height: 34px; margin-top: 12px; border: none; border-radius: 8px;
+      background: var(--accent); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    button:hover { background: #849eff; }
+    button.secondary { background: var(--elevated); color: var(--text); border: 1px solid var(--border); }
+    button.secondary:hover { background: #283047; }
+    button.danger { background: transparent; color: var(--danger); border: 1px solid var(--border); }
+    .row { display: flex; align-items: center; gap: 8px; }
+    .muted { color: var(--muted); font-size: 11.5px; }
+    .err { color: var(--danger); font-size: 11.5px; margin-top: 8px; min-height: 14px; }
+    .ok { color: var(--success); font-size: 11.5px; margin-top: 8px; min-height: 14px; }
+    .hidden { display: none; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--elevated); color: var(--muted); }
+    hr { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+    a { color: var(--accent); text-decoration: none; font-size: 11.5px; }
+  </style>
+</head>
+<body>
+  <div class="brand">
+    <div class="logo">🧠</div>
+    <div class="name">Mneme</div>
+    <div class="tag">Remember what lasts.</div>
+  </div>
+
+  <!-- Logged out -->
+  <div id="login-view" class="hidden">
+    <label>Email</label>
+    <input id="email" type="email" placeholder="you@example.com" autocomplete="username" />
+    <label>Password</label>
+    <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" />
+    <button id="login-btn">Sign in</button>
+    <div id="login-msg" class="err"></div>
+    <hr />
+    <label>Mneme API</label>
+    <input id="api-url" type="text" placeholder="http://localhost:5000" />
+    <div class="muted" style="margin-top:6px;">Sign in with the same account you use in the Control Center.</div>
+  </div>
+
+  <!-- Logged in -->
+  <div id="home-view" class="hidden">
+    <div class="row">
+      <span id="status-dot" class="status-dot"></span>
+      <span id="who" class="muted"></span>
+      <span id="mode-pill" class="pill" style="margin-left:auto;">Active</span>
+    </div>
+    <button id="capture-btn" class="secondary">Capture this page</button>
+    <button id="pause-btn" class="secondary">Pause observing</button>
+    <div id="home-msg" class="ok"></div>
+    <hr />
+    <div class="row">
+      <a id="cc-link" href="#" target="_blank">Open Control Center ↗</a>
+      <button id="logout-btn" class="danger" style="width:auto; height:26px; margin:0 0 0 auto; padding:0 10px;">Sign out</button>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

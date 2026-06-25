@@ -1,11 +1,12 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Brain, LayoutDashboard, BookOpen, BarChart3, LogOut, UserCircle } from 'lucide-react';
+import { Brain, LayoutDashboard, BookOpen, BarChart3, LogOut, UserCircle, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/mneme',     icon: Sparkles,        label: 'Control Center' },
   { to: '/topics',    icon: BookOpen,        label: 'Topics' },
   { to: '/study',     icon: Brain,           label: 'Study' },
   { to: '/stats',     icon: BarChart3,       label: 'Progress' },

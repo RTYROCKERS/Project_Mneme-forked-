@@ -15,6 +15,7 @@ const masteryRoutes = require('./src/routes/mastery');
 const recommendationRoutes = require('./src/routes/recommendations');
 const contentRoutes = require('./src/routes/content');
 const profileRoutes = require('./src/routes/profile');
+const mnemeRoutes = require('./src/routes/mneme');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -38,6 +39,7 @@ app.use('/api/mastery', masteryRoutes);
 app.use('/api/recommendations', recommendationRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/mneme', mnemeRoutes);
 
 // 404
 app.use((req, res) => res.status(404).json({ error: 'Route not found' }));
