@@ -17,6 +17,15 @@ const LEVEL_LABEL = {
   new: 'new', learning: 'learning', comfortable: 'comfortable', expert: 'expert',
 };
 
+function ProfileRow({ label, value }) {
+  return (
+    <div className="flex gap-2 text-xs">
+      <dt className="w-20 shrink-0 text-[var(--text-muted)]">{label}</dt>
+      <dd className="flex-1 text-[var(--text-primary)]">{value}</dd>
+    </div>
+  );
+}
+
 /**
  * Knowledge profile — the editable face of the onboarding prior. Shows the
  * domains Mneme is calibrated to and how many "declared" hints are still in
@@ -31,6 +40,8 @@ export function KnowledgeProfilePanel() {
 
   const expertise = data?.expertise || [];
   const declared = data?.declaredCount || 0;
+  const profile = data?.profile || {};
+  const hasProfile = profile.role || profile.education?.current || profile.focus;
 
   return (
     <Card>
@@ -40,7 +51,7 @@ export function KnowledgeProfilePanel() {
             <Sparkles size={14} className="text-[var(--accent)]" /> Knowledge profile
           </p>
           <p className="text-xs text-[var(--text-muted)] mt-1">
-            What Mneme assumes you already know.
+            Who you are and what Mneme assumes you already know.
           </p>
         </div>
         <button
@@ -50,6 +61,26 @@ export function KnowledgeProfilePanel() {
           <Pencil size={12} /> Edit
         </button>
       </div>
+
+      {/* Structured profile */}
+      {hasProfile && (
+        <dl className="mt-3 space-y-1.5">
+          {profile.role && (
+            <ProfileRow label="Role" value={profile.role} />
+          )}
+          {profile.education?.current && (
+            <ProfileRow
+              label="Education"
+              value={
+                profile.education.past
+                  ? `${profile.education.current} · ${profile.education.past}`
+                  : profile.education.current
+              }
+            />
+          )}
+          {profile.focus && <ProfileRow label="Focus area" value={profile.focus} />}
+        </dl>
+      )}
 
       <div className="mt-3">
         {isLoading ? (
@@ -86,6 +117,7 @@ export function KnowledgeProfilePanel() {
         open={editing}
         editMode
         initialExpertise={expertise}
+        initialProfile={profile}
         onClose={() => { setEditing(false); refetch(); }}
       />
     </Card>

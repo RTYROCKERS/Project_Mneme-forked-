@@ -114,6 +114,24 @@ function generateText(prompt, opts) {
 }
 
 /**
+ * Multi-turn chat. messages: [{ role: 'user'|'assistant', content }]; system
+ * prompt via opts.system. Provider-agnostic shape used by the LLM facade.
+ * @param {Array<{role:'user'|'assistant', content:string}>} messages
+ * @param {object} [opts]
+ * @returns {Promise<string>}
+ */
+function chat(messages, opts) {
+  const contents = (messages || [])
+    .filter((m) => m && m.content)
+    .map((m) => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: String(m.content) }],
+    }));
+  if (contents.length === 0) contents.push({ role: 'user', parts: [{ text: '' }] });
+  return callGemini(contents, opts);
+}
+
+/**
  * Single-turn generation that expects JSON back. Strips markdown code fences
  * and parses the result.
  * @param {string} prompt
@@ -176,4 +194,4 @@ async function embedText(text, { taskType = 'SEMANTIC_SIMILARITY' } = {}) {
   return vector;
 }
 
-module.exports = { callGemini, generateText, generateJSON, embedText, GEMINI_MODEL, GEMINI_EMBED_MODEL };
+module.exports = { callGemini, generateText, generateJSON, chat, embedText, GEMINI_MODEL, GEMINI_EMBED_MODEL };

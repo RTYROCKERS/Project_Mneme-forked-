@@ -37,6 +37,35 @@ export const mneme = {
   // First-run onboarding (cold-start) + editing the prior / adding anchors later
   getOnboarding: () => api.get('/mneme/onboarding').then((r) => r.data),
   saveOnboarding: (payload) => api.post('/mneme/onboarding', payload).then((r) => r.data),
+
+  // "Learn this page" — recall what's fading + teach what's new
+  pageInsight: (payload) => api.post('/mneme/page-insight', payload).then((r) => r.data),
+  learnNow: (payload) => api.post('/mneme/learn-now', payload).then((r) => r.data),
+
+  // "Get me ready to read this document" — the universal document surface.
+  // Pass either { file } (PDF/Word/PPT/Excel/text) or { text, title } (pasted).
+  docInsight: ({ file, text, title } = {}) => {
+    if (file) {
+      const fd = new FormData();
+      fd.append('file', file);
+      if (title) fd.append('title', title);
+      // Let the browser set the multipart boundary by clearing the JSON default.
+      return api
+        .post('/mneme/doc-insight', fd, { headers: { 'Content-Type': undefined } })
+        .then((r) => r.data);
+    }
+    return api.post('/mneme/doc-insight', { text, title }).then((r) => r.data);
+  },
+
+  // Save a whole briefing (refreshers + gaps + key points) into Topics/Study.
+  studyPacket: (payload) => api.post('/mneme/study-packet', payload).then((r) => r.data),
+
+  // Learning queue ("learn later" backlog)
+  listLearnQueue: (status = 'pending') =>
+    api.get('/mneme/learn-queue', { params: { status } }).then((r) => r.data),
+  queueLearn: (payload) => api.post('/mneme/learn-queue', payload).then((r) => r.data),
+  resolveQueueItem: (id, action) =>
+    api.post(`/mneme/learn-queue/${id}/resolve`, { action }).then((r) => r.data),
 };
 
 export default mneme;

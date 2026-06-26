@@ -32,6 +32,36 @@ const LEVELS = [
   { value: 'expert', label: 'Expert' },
 ];
 
+const inputCls =
+  'w-full rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none';
+
+function Field({ label, value, onChange, placeholder, required = false, multiline = false }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs font-medium text-[var(--text-muted)]">
+        {label}
+        {required && <span className="ml-0.5 text-[var(--accent)]">*</span>}
+      </span>
+      {multiline ? (
+        <textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          rows={2}
+          className={cn(inputCls, 'resize-none')}
+        />
+      ) : (
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className={inputCls}
+        />
+      )}
+    </label>
+  );
+}
+
 function LevelPicker({ value, onChange }) {
   return (
     <div className="flex shrink-0 overflow-hidden rounded-lg border border-[var(--border)]">
@@ -69,12 +99,16 @@ function StepDots({ step }) {
   );
 }
 
-export function Onboarding({ open, onClose, editMode = false, initialExpertise = [] }) {
+export function Onboarding({ open, onClose, editMode = false, initialExpertise = [], initialProfile = null }) {
   const qc = useQueryClient();
   const [step, setStep] = useState(1);
   const [expertise, setExpertise] = useState(() =>
     Array.isArray(initialExpertise) ? initialExpertise : []
   );
+  const [role, setRole] = useState(() => initialProfile?.role || '');
+  const [eduCurrent, setEduCurrent] = useState(() => initialProfile?.education?.current || '');
+  const [eduPast, setEduPast] = useState(() => initialProfile?.education?.past || '');
+  const [focus, setFocus] = useState(() => initialProfile?.focus || '');
   const [customDomain, setCustomDomain] = useState('');
   const [dump, setDump] = useState('');
   const [saving, setSaving] = useState(false);
@@ -82,6 +116,10 @@ export function Onboarding({ open, onClose, editMode = false, initialExpertise =
   const [error, setError] = useState('');
 
   if (!open) return null;
+
+  // Role, current education and current focus are compulsory — they give Mneme
+  // an accurate picture of who you are with minimal input.
+  const step1Valid = role.trim() && eduCurrent.trim() && focus.trim();
 
   const selectedNames = new Set(expertise.map((e) => e.domain.toLowerCase()));
 
@@ -109,6 +147,11 @@ export function Onboarding({ open, onClose, editMode = false, initialExpertise =
     try {
       const res = await mneme.saveOnboarding({
         expertise,
+        profile: {
+          role: role.trim(),
+          education: { current: eduCurrent.trim(), past: eduPast.trim() },
+          focus: focus.trim(),
+        },
         anchors: parseAnchors(dump),
         markOnboarded: true,
       });
@@ -154,15 +197,57 @@ export function Onboarding({ open, onClose, editMode = false, initialExpertise =
           )}
         </div>
 
-        <div className="px-6 py-5 min-h-[320px]">
+        <div className="px-6 py-5 min-h-[320px] max-h-[65vh] overflow-y-auto">
           {/* ----- Screen 1: the prior ----- */}
           {step === 1 && (
             <div className="space-y-4">
               <div>
-                <h3 className="text-base font-semibold text-[var(--text-primary)]">What are you into?</h3>
+                <h3 className="text-base font-semibold text-[var(--text-primary)]">A little about you</h3>
                 <p className="text-sm text-[var(--text-muted)] mt-1">
-                  This just sets how chatty Mneme is — quiet where you're an expert, keener where
-                  you're new. It doesn't add any memories.
+                  A few quick essentials so Mneme judges what matters against who you actually
+                  are. The starred fields are required — everything else is optional.
+                </p>
+              </div>
+
+              {/* Required structured profile */}
+              <div className="space-y-3">
+                <Field
+                  label="Current role"
+                  required
+                  value={role}
+                  onChange={setRole}
+                  placeholder="e.g. Software Engineering Intern"
+                />
+                <Field
+                  label="Education"
+                  required
+                  value={eduCurrent}
+                  onChange={setEduCurrent}
+                  placeholder="e.g. BSc Computer Science · MIT"
+                />
+                <Field
+                  label="Past education"
+                  value={eduPast}
+                  onChange={setEduPast}
+                  placeholder="e.g. High school diploma — Phillips Academy (optional)"
+                />
+                <Field
+                  label="Main focus area"
+                  required
+                  multiline
+                  value={focus}
+                  onChange={setFocus}
+                  placeholder="e.g. Backend infrastructure & APIs (or Frontend, ML, DevOps, Data…)"
+                />
+              </div>
+
+              {/* Optional domain calibration */}
+              <div className="pt-1">
+                <p className="text-sm font-medium text-[var(--text-primary)]">
+                  Areas &amp; comfort <span className="text-[var(--text-muted)] font-normal">(optional)</span>
+                </p>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                  Sets how chatty Mneme is — quiet where you're an expert, keener where you're new.
                 </p>
               </div>
 
@@ -273,10 +358,12 @@ export function Onboarding({ open, onClose, editMode = false, initialExpertise =
           <div className="flex items-center gap-2">
             {step === 1 && (
               <>
-                <Button variant="ghost" size="sm" onClick={finish} disabled={saving}>
-                  {editMode ? 'Cancel' : 'Skip'}
-                </Button>
-                <Button size="sm" onClick={() => setStep(2)}>
+                {editMode && (
+                  <Button variant="ghost" size="sm" onClick={close} disabled={saving}>
+                    Cancel
+                  </Button>
+                )}
+                <Button size="sm" onClick={() => setStep(2)} disabled={!step1Valid}>
                   Next <ArrowRight size={14} />
                 </Button>
               </>

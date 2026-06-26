@@ -9,6 +9,8 @@ import { MemoryFeed } from '@/components/mneme/MemoryFeed';
 import { ModesPanel } from '@/components/mneme/ModesPanel';
 import { SourcesPanel } from '@/components/mneme/SourcesPanel';
 import { KnowledgeProfilePanel } from '@/components/mneme/KnowledgeProfilePanel';
+import { LearningQueuePanel } from '@/components/mneme/LearningQueuePanel';
+import { ObservingStatus } from '@/components/mneme/ObservingStatus';
 import { Onboarding } from '@/components/mneme/Onboarding';
 
 /**
@@ -47,6 +49,8 @@ export default function ControlCenter() {
         </div>
       </div>
 
+      <ObservingStatus />
+
       {isLoading ? (
         <div className="flex justify-center py-20"><Spinner size="lg" /></div>
       ) : (
@@ -55,6 +59,7 @@ export default function ControlCenter() {
           <div className="lg:col-span-2 space-y-5">
             <RecallTester />
             <StrengthPanel memories={memories} />
+            <LearningQueuePanel />
             <MemoryFeed memories={memories} />
           </div>
 

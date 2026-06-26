@@ -47,6 +47,24 @@
     .pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--elevated); color: var(--muted); }
     hr { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
     a { color: var(--accent); text-decoration: none; font-size: 11.5px; }
+    /* Learn-this-page panel */
+    .section-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 14px 0 6px; }
+    .summary { font-size: 12px; color: var(--text); background: var(--elevated); border: 1px solid var(--border); border-radius: 8px; padding: 9px 10px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 9px 10px; margin-top: 8px; }
+    .card .title { font-weight: 600; font-size: 12.5px; }
+    .card .body { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
+    .card .anchor { font-size: 11px; color: var(--accent); margin-top: 4px; }
+    .chip { display: inline-block; font-size: 10px; padding: 1px 7px; border-radius: 999px; margin-left: auto; }
+    .chip.solid { background: rgba(76,175,140,0.18); color: #6dd7b4; }
+    .chip.fading { background: rgba(255,193,7,0.16); color: #e6c35a; }
+    .chip.slipping { background: rgba(229,140,90,0.18); color: #f0a878; }
+    .chip.gone { background: rgba(229,107,111,0.18); color: #f08c8f; }
+    .card .head { display: flex; align-items: center; gap: 6px; }
+    .mini-actions { display: flex; gap: 6px; margin-top: 8px; }
+    .mini-actions button { height: 28px; margin: 0; font-size: 11.5px; font-weight: 600; flex: 1; }
+    .mini { height: 26px; width: auto; padding: 0 10px; font-size: 11px; margin: 0; }
+    .empty { font-size: 11.5px; color: var(--muted); padding: 4px 0; }
+    .scroll { max-height: 360px; overflow-y: auto; margin: 0 -4px; padding: 0 4px; }
   </style>
 </head>
 <body>
@@ -78,6 +96,7 @@
       <span id="mode-pill" class="pill" style="margin-left:auto;">Active</span>
     </div>
     <button id="capture-btn" class="secondary">Capture this page</button>
+    <button id="learn-btn">Learn this page</button>
     <button id="pause-btn" class="secondary">Pause observing</button>
     <div id="home-msg" class="ok"></div>
     <hr />
@@ -85,6 +104,16 @@
       <a id="cc-link" href="#" target="_blank">Open Control Center ↗</a>
       <button id="logout-btn" class="danger" style="width:auto; height:26px; margin:0 0 0 auto; padding:0 10px;">Sign out</button>
     </div>
+  </div>
+
+  <!-- Learn this page -->
+  <div id="insight-view" class="hidden">
+    <div class="row">
+      <button id="insight-back" class="mini secondary">← Back</button>
+      <span class="muted" style="margin-left:auto;">Learn this page</span>
+    </div>
+    <div id="insight-summary" class="summary" style="margin-top:10px;">Reading this page…</div>
+    <div id="insight-body" class="scroll"></div>
   </div>
 
   <script src="popup.js"></script>

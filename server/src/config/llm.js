@@ -55,6 +55,15 @@ function generateJSON(prompt, { task, ...opts } = {}) {
 }
 
 /**
+ * Multi-turn chat through the (optionally smart) provider.
+ * @param {Array<{role:'user'|'assistant', content:string}>} messages
+ * @param {{ task?: string, temperature?: number, maxOutputTokens?: number, system?: string }} [opts]
+ */
+function chat(messages, { task, ...opts } = {}) {
+  return providerForTask(task).chat(messages, opts);
+}
+
+/**
  * Embeddings always go through the embed provider (Gemini is free and good).
  * @param {string} text
  * @param {object} [opts]
@@ -73,4 +82,4 @@ function activeProviders() {
   };
 }
 
-module.exports = { generateText, generateJSON, embedText, activeProviders };
+module.exports = { generateText, generateJSON, chat, embedText, activeProviders };

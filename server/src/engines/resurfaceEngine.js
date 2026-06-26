@@ -36,7 +36,9 @@ const { computeRetrievability, strengthLabel } = require('./retrievabilityEngine
  */
 function findResurfaceCandidates(contextVec, memories, opts = {}) {
   const {
-    relevanceThreshold = 0.78,
+    // Tuned for the active embedding provider. Azure text-embedding-3-small:
+    // unrelated <=0.25, on-topic context match 0.40-0.54 (Gemini was 0.78).
+    relevanceThreshold = 0.40,
     resurfaceThreshold = 0.6,
     now = Date.now(),
     limit = 3,
@@ -83,7 +85,7 @@ function pickOne(contextVec, memories, opts = {}) {
  * Human-readable "why am I seeing this?" line shown on every resurfaced card.
  */
 function buildReason(similarity, retrievability) {
-  const rel = similarity >= 0.75 ? 'closely related to what you\u2019re doing'
+  const rel = similarity >= 0.50 ? 'closely related to what you\u2019re doing'
     : 'related to what you\u2019re doing';
   const pct = Math.round(retrievability * 100);
   return `This is ${rel}, and you\u2019re at about ${pct}% recall \u2014 a good moment to refresh.`;

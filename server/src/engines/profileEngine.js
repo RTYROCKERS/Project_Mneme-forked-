@@ -4,7 +4,7 @@
  * learner profile, and synthesizes the conversation into a structured profile.
  */
 
-const { callGemini, generateJSON } = require('../config/gemini');
+const { chat, generateJSON } = require('../config/llm');
 
 const COACH_SYSTEM = `
 You are Mneme's friendly learning coach. Your job is to interview the learner
@@ -24,18 +24,18 @@ save their profile. Never invent facts about the learner.
  * @returns {Promise<string>} the assistant's next message
  */
 async function chatWithCoach(history) {
-  const contents = (history || [])
+  const messages = (history || [])
     .filter((m) => m && m.content)
     .map((m) => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: String(m.content) }],
+      role: m.role === 'assistant' ? 'assistant' : 'user',
+      content: String(m.content),
     }));
 
-  if (contents.length === 0) {
-    contents.push({ role: 'user', parts: [{ text: 'Help me build my learner profile.' }] });
+  if (messages.length === 0) {
+    messages.push({ role: 'user', content: 'Help me build my learner profile.' });
   }
 
-  return callGemini(contents, { temperature: 0.7, maxOutputTokens: 500, system: COACH_SYSTEM });
+  return chat(messages, { temperature: 0.7, maxOutputTokens: 500, system: COACH_SYSTEM });
 }
 
 /**

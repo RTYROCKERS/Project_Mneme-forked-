@@ -50,6 +50,25 @@ function hostnameOf(url) {
   try { return new URL(url).hostname; } catch { return 'unknown'; }
 }
 
+// Sites the user has muted ("never on this site"). Persisted in storage.
+async function getMutedSites() {
+  const c = await chrome.storage.local.get(['mutedSites']);
+  return Array.isArray(c.mutedSites) ? c.mutedSites : [];
+}
+async function muteSite(host) {
+  const sites = await getMutedSites();
+  if (host && !sites.includes(host)) sites.push(host);
+  await setConfig({ mutedSites: sites });
+  return { ok: true };
+}
+
+// Lightweight check the content script runs before offering its launcher.
+async function launchCheck(host) {
+  const cfg = await getConfig();
+  const muted = host ? (await getMutedSites()).includes(host) : false;
+  return { token: !!cfg.token, paused: cfg.paused, muted };
+}
+
 // De-dupe rapid re-observes of the same page (SPA route changes, scroll, etc.).
 const recentlyObserved = new Map(); // key -> timestamp
 const OBSERVE_COOLDOWN_MS = 60_000;
@@ -115,6 +134,34 @@ async function handleRecall(payload) {
   }
 }
 
+// "Learn this page" — work out what you need to read the page (prereqs split
+// into solid / faded / missing) plus what the page itself covers.
+async function pageInsight({ text, url, title }) {
+  if (!text || !text.trim()) {
+    return { overview: '', keyPoints: [], prereqs: [], summary: '', counts: { solid: 0, faded: 0, missing: 0 } };
+  }
+  return apiFetch('/api/mneme/page-insight', {
+    method: 'POST',
+    body: { text: text.slice(0, 6000), url, title },
+  });
+}
+
+// Learn a concept right now (stores it as a memory; enters the decay loop).
+async function learnNow(payload) {
+  return apiFetch('/api/mneme/learn-now', { method: 'POST', body: payload });
+}
+
+// Queue a concept to learn later (rolls up in the Control Center).
+async function queueLearn(payload) {
+  return apiFetch('/api/mneme/learn-queue', { method: 'POST', body: payload });
+}
+
+// Save the whole "learn this page" briefing as a study Topic (page content +
+// faded refreshers + missing gaps) — surfaces in Topics/Study/Quiz.
+async function studyPacket(payload) {
+  return apiFetch('/api/mneme/study-packet', { method: 'POST', body: payload });
+}
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   (async () => {
     try {
@@ -140,8 +187,26 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         case 'observe':
           sendResponse(await handleObserve(msg.payload, sender));
           break;
+        case 'launchCheck':
+          sendResponse(await launchCheck(msg.host));
+          break;
+        case 'muteSite':
+          sendResponse(await muteSite(msg.host));
+          break;
         case 'recall':
           sendResponse(await handleRecall(msg.payload));
+          break;
+        case 'pageInsight':
+          sendResponse(await pageInsight(msg.payload).catch((e) => ({ error: e.message })));
+          break;
+        case 'learnNow':
+          sendResponse(await learnNow(msg.payload).catch((e) => ({ error: e.message })));
+          break;
+        case 'queueLearn':
+          sendResponse(await queueLearn(msg.payload).catch((e) => ({ error: e.message })));
+          break;
+        case 'studyPacket':
+          sendResponse(await studyPacket(msg.payload).catch((e) => ({ error: e.message })));
           break;
         case 'captureNow':
           sendResponse(await capturePage(msg.payload).catch((e) => ({ error: e.message })));

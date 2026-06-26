@@ -11,6 +11,7 @@ import Dashboard from '@/pages/Dashboard';
 import ControlCenter from '@/pages/ControlCenter';
 import Topics from '@/pages/Topics';
 import TopicDetail from '@/pages/TopicDetail';
+import Documents from '@/pages/Documents';
 import Study from '@/pages/Study';
 import Stats from '@/pages/Stats';
 import Profile from '@/pages/Profile';
@@ -45,6 +46,7 @@ export default function App() {
               <Route path="/mneme"        element={<ControlCenter />} />
               <Route path="/topics"       element={<Topics />} />
               <Route path="/topics/:id"   element={<TopicDetail />} />
+              <Route path="/documents"    element={<Documents />} />
               <Route path="/study"        element={<Study />} />
               <Route path="/stats"        element={<Stats />} />
               <Route path="/profile"      element={<Profile />} />

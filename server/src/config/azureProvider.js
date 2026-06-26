@@ -19,9 +19,54 @@ const KEY = process.env.AZURE_OPENAI_KEY || '';
 const DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || '';
 const EMBED_DEPLOYMENT = process.env.AZURE_OPENAI_EMBED_DEPLOYMENT || '';
 const API_VERSION = process.env.AZURE_OPENAI_API_VERSION || '2024-08-01-preview';
+const MAX_RETRIES = Number(process.env.AZURE_MAX_RETRIES || 3);
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function isConfigured() {
   return Boolean(ENDPOINT && KEY && DEPLOYMENT);
+}
+
+/**
+ * POST JSON to an Azure OpenAI endpoint with exponential backoff on transient
+ * errors (429 throttling, 5xx). Honors the Retry-After header when present.
+ * Keeps the demo resilient under burst load instead of failing on the first 429.
+ */
+async function postWithRetry(url, body, label) {
+  let lastErr;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+    let res;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'api-key': KEY },
+        body: JSON.stringify(body),
+      });
+    } catch (networkErr) {
+      lastErr = new Error(`Failed to reach ${label}: ${networkErr.message}`);
+      lastErr.status = 502;
+      if (attempt < MAX_RETRIES) { await sleep(400 * 2 ** attempt); continue; }
+      throw lastErr;
+    }
+
+    if (res.ok) return res.json();
+
+    const detail = await res.text().catch(() => '');
+    const retryable = res.status === 429 || (res.status >= 500 && res.status < 600);
+    if (retryable && attempt < MAX_RETRIES) {
+      const retryAfter = Number(res.headers.get('retry-after'));
+      const waitMs = Number.isFinite(retryAfter) && retryAfter > 0
+        ? Math.min(retryAfter * 1000, 10000)
+        : 400 * 2 ** attempt;
+      await sleep(waitMs);
+      continue;
+    }
+
+    const err = new Error(`${label} error ${res.status}: ${detail}`);
+    err.status = res.status === 429 ? 429 : 502;
+    throw err;
+  }
+  throw lastErr;
 }
 
 function notConfigured(what = 'chat') {
@@ -33,21 +78,17 @@ function notConfigured(what = 'chat') {
   return err;
 }
 
-async function callAzure(messages, { temperature = 0.5, maxOutputTokens = 1024 } = {}) {
+async function callAzure(messages, { temperature = 0.5, maxOutputTokens = 1024, system } = {}) {
   if (!isConfigured()) throw notConfigured('chat');
+  const finalMessages = system && messages[0]?.role !== 'system'
+    ? [{ role: 'system', content: system }, ...messages]
+    : messages;
   const url = `${ENDPOINT}/openai/deployments/${DEPLOYMENT}/chat/completions?api-version=${API_VERSION}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'api-key': KEY },
-    body: JSON.stringify({ messages, temperature, max_tokens: maxOutputTokens }),
-  });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    const err = new Error(`Azure OpenAI error ${res.status}: ${detail}`);
-    err.status = res.status === 429 ? 429 : 502;
-    throw err;
-  }
-  const data = await res.json();
+  const data = await postWithRetry(
+    url,
+    { messages: finalMessages, temperature, max_tokens: maxOutputTokens },
+    'Azure OpenAI'
+  );
   const text = data?.choices?.[0]?.message?.content || '';
   if (!text) {
     const err = new Error('Azure returned an empty response');
@@ -59,6 +100,18 @@ async function callAzure(messages, { temperature = 0.5, maxOutputTokens = 1024 }
 
 function generateText(prompt, opts) {
   return callAzure([{ role: 'user', content: prompt }], opts);
+}
+
+/**
+ * Multi-turn chat. messages: [{ role: 'user'|'assistant', content }]; system
+ * prompt via opts.system. Mirrors gemini.chat so the facade is provider-agnostic.
+ */
+function chat(messages, { system, ...opts } = {}) {
+  const mapped = (messages || [])
+    .filter((m) => m && m.content)
+    .map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content) }));
+  if (mapped.length === 0) mapped.push({ role: 'user', content: '' });
+  return callAzure(mapped, { ...opts, system });
 }
 
 async function generateJSON(prompt, opts) {
@@ -86,18 +139,7 @@ async function embedText(text) {
     throw err;
   }
   const url = `${ENDPOINT}/openai/deployments/${EMBED_DEPLOYMENT}/embeddings?api-version=${API_VERSION}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'api-key': KEY },
-    body: JSON.stringify({ input: clean }),
-  });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    const err = new Error(`Azure embeddings error ${res.status}: ${detail}`);
-    err.status = res.status === 429 ? 429 : 502;
-    throw err;
-  }
-  const data = await res.json();
+  const data = await postWithRetry(url, { input: clean }, 'Azure embeddings');
   const vector = data?.data?.[0]?.embedding;
   if (!Array.isArray(vector) || vector.length === 0) {
     const err = new Error('Azure returned an empty embedding');
@@ -107,4 +149,4 @@ async function embedText(text) {
   return vector;
 }
 
-module.exports = { generateText, generateJSON, embedText, isConfigured, name: 'azure' };
+module.exports = { generateText, generateJSON, chat, embedText, isConfigured, name: 'azure' };

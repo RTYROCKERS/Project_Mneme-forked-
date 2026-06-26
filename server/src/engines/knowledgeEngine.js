@@ -3,7 +3,7 @@
  * Uses the Gemini API to extract concepts from resource content.
  */
 
-const { generateText } = require('../config/gemini');
+const { generateText } = require('../config/llm');
 
 /**
  * Extract concepts from raw text content.

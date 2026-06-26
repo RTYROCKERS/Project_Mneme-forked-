@@ -4,7 +4,7 @@
   "description": "Jog your own knowledge while you code. Mneme observes what you work on and quietly resurfaces facts you're starting to forget.",
   "version": "0.1.0",
   "publisher": "mneme",
-  "engines": { "vscode": "^1.75.0" },
+  "engines": { "vscode": "^1.93.0" },
   "categories": ["Other", "Education"],
   "activationEvents": ["onStartupFinished"],
   "main": "./extension.js",
@@ -13,18 +13,21 @@
       { "command": "mneme.signIn", "title": "Mneme: Sign In" },
       { "command": "mneme.signOut", "title": "Mneme: Sign Out" },
       { "command": "mneme.rememberSelection", "title": "Mneme: Remember Selection" },
-      { "command": "mneme.recallHere", "title": "Mneme: Recall for Current Context" },
-      { "command": "mneme.togglePause", "title": "Mneme: Pause / Resume Observing" },
+      { "command": "mneme.briefThisFile", "title": "Mneme: Get Ready to Read This File" },
+      { "command": "mneme.monitorTerminal", "title": "Mneme: Monitor This Terminal (Agent Session)" },
+      { "command": "mneme.briefSession", "title": "Mneme: Brief Me on This Terminal Session" },
+      { "command": "mneme.togglePause", "title": "Mneme: Pause / Resume" },
       { "command": "mneme.openControlCenter", "title": "Mneme: Open Control Center" },
       { "command": "mneme.menu", "title": "Mneme: Menu" }
     ],
     "keybindings": [
       { "command": "mneme.rememberSelection", "key": "ctrl+alt+m", "mac": "cmd+alt+m", "when": "editorHasSelection" },
-      { "command": "mneme.recallHere", "key": "ctrl+alt+r", "mac": "cmd+alt+r" }
+      { "command": "mneme.briefThisFile", "key": "ctrl+alt+r", "mac": "cmd+alt+r", "when": "editorTextFocus" }
     ],
     "menus": {
       "editor/context": [
-        { "command": "mneme.rememberSelection", "when": "editorHasSelection", "group": "mneme" }
+        { "command": "mneme.rememberSelection", "when": "editorHasSelection", "group": "mneme" },
+        { "command": "mneme.briefThisFile", "when": "editorTextFocus", "group": "mneme" }
       ]
     },
     "configuration": {
@@ -43,7 +46,17 @@
         "mneme.ambient": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically surface fading memories as you switch/save files."
+          "description": "Offer to get you ready to read each code file you open (asks per file before doing anything)."
+        },
+        "mneme.monitorTerminals": {
+          "type": "boolean",
+          "default": true,
+          "description": "When a new terminal opens, ask whether Mneme should monitor that agent session and brief you on it when the work settles."
+        },
+        "mneme.sessionIdleMs": {
+          "type": "number",
+          "default": 7000,
+          "description": "How long a monitored terminal must stay quiet (after a successful command) before Mneme decides the agent's task has settled and auto-opens the session briefing."
         }
       }
     }

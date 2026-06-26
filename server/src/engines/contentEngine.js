@@ -5,7 +5,7 @@
  * concept, its description and the topic context — no external resources.
  */
 
-const { generateJSON } = require('../config/gemini');
+const { generateJSON } = require('../config/llm');
 
 function profileBlock(userProfile) {
   return userProfile && userProfile.trim()
