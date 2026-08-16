@@ -73,10 +73,17 @@ async function postWithRetry(url, body, label) {
  * Low-level call to Gemini's generateContent endpoint.
  *
  * @param {Array<{role: 'user'|'model', parts: Array<{text: string}>}>} contents
- * @param {{ temperature?: number, maxOutputTokens?: number, system?: string }} [opts]
- * @returns {Promise<string>} the model's text response
+ * @param {{ temperature?: number, maxOutputTokens?: number, system?: string,
+ *           jsonMode?: boolean, responseSchema?: object }} [opts]
+ * @returns {Promise<{ text: string, finishReason: string|undefined }>}
  */
-async function callGemini(contents, { temperature = 0.5, maxOutputTokens = 1024, system } = {}) {
+async function callGemini(contents, {
+  temperature = 0.5,
+  maxOutputTokens = 1024,
+  system,
+  jsonMode = false,
+  responseSchema,
+} = {}) {
   if (!GEMINI_API_KEY) {
     const err = new Error('GEMINI_API_KEY is not configured on the server');
     err.status = 503;
@@ -85,22 +92,36 @@ async function callGemini(contents, { temperature = 0.5, maxOutputTokens = 1024,
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
 
-  const body = {
-    contents,
-    generationConfig: { temperature, maxOutputTokens },
-  };
+  const generationConfig = { temperature, maxOutputTokens };
+  if (jsonMode) {
+    // Native structured-output mode: Gemini is constrained to emit syntactically
+    // valid JSON with no markdown fences or commentary. Passing responseSchema
+    // additionally constrains the *shape* (field names/types), so callers get a
+    // real schema guarantee instead of hoping the prompt was followed.
+    generationConfig.responseMimeType = 'application/json';
+    if (responseSchema) generationConfig.responseSchema = responseSchema;
+  }
+
+  const body = { contents, generationConfig };
   if (system) body.systemInstruction = { parts: [{ text: system }] };
 
   const data = await postWithRetry(url, body, 'Gemini API');
-  const text = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join('') || '';
+  const candidate = data?.candidates?.[0];
+  const text = candidate?.content?.parts?.map((p) => p.text).join('') || '';
+  const finishReason = candidate?.finishReason;
 
   if (!text) {
-    const err = new Error('Gemini returned an empty response');
+    const err = new Error(
+      finishReason === 'SAFETY'
+        ? 'Gemini blocked the response (safety filters)'
+        : 'Gemini returned an empty response',
+    );
     err.status = 502;
+    err.finishReason = finishReason;
     throw err;
   }
 
-  return text;
+  return { text, finishReason };
 }
 
 /**
@@ -110,7 +131,7 @@ async function callGemini(contents, { temperature = 0.5, maxOutputTokens = 1024,
  * @returns {Promise<string>}
  */
 function generateText(prompt, opts) {
-  return callGemini([{ role: 'user', parts: [{ text: prompt }] }], opts);
+  return callGemini([{ role: 'user', parts: [{ text: prompt }] }], opts).then((r) => r.text);
 }
 
 /**
@@ -128,31 +149,106 @@ function chat(messages, opts) {
       parts: [{ text: String(m.content) }],
     }));
   if (contents.length === 0) contents.push({ role: 'user', parts: [{ text: '' }] });
-  return callGemini(contents, opts);
+  return callGemini(contents, opts).then((r) => r.text);
+}
+
+/** Strips a markdown code fence even when the model added prose around it
+ * (older models / responseSchema-less calls sometimes still do this). */
+function stripCodeFences(raw) {
+  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  return fenced ? fenced[1] : raw;
 }
 
 /**
- * Single-turn generation that expects JSON back. Strips markdown code fences
- * and parses the result.
+ * Last-resort extraction: scan for the first balanced {...} or [...] block,
+ * ignoring braces/brackets that appear inside quoted strings. Used when the
+ * model added commentary before/after the JSON. Returns null if no balanced
+ * block is found at all (a strong signal the response was truncated).
+ */
+function extractBalancedJSON(raw) {
+  const openers = { '{': '}', '[': ']' };
+  let start = -1;
+  for (let i = 0; i < raw.length; i += 1) {
+    if (raw[i] === '{' || raw[i] === '[') { start = i; break; }
+  }
+  if (start === -1) return null;
+
+  const open = raw[start];
+  const close = openers[open];
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+
+  for (let i = start; i < raw.length; i += 1) {
+    const ch = raw[i];
+    if (inString) {
+      if (escape) escape = false;
+      else if (ch === '\\') escape = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') { inString = true; continue; }
+    if (ch === open) depth += 1;
+    else if (ch === close) {
+      depth -= 1;
+      if (depth === 0) return raw.slice(start, i + 1);
+    }
+  }
+  return null; // never closed while scanning -> truncated mid-structure
+}
+
+/** Repairs trailing commas before a closing bracket/brace — a common
+ * near-miss even from otherwise well-behaved JSON-mode output. */
+function repairTrailingCommas(str) {
+  return str.replace(/,(\s*[}\]])/g, '$1');
+}
+
+/**
+ * Single-turn generation that expects JSON back. Uses Gemini's native JSON
+ * mode (responseMimeType + optional responseSchema) so the model is
+ * constrained at generation time. Still applies defensive parsing (fence
+ * stripping, balanced-bracket extraction, trailing-comma repair) as a safety
+ * net, and distinguishes "truncated" from "malformed" so callers can decide
+ * whether retrying with a smaller request will actually help.
+ *
  * @param {string} prompt
- * @param {object} [opts]
+ * @param {{ responseSchema?: object } & object} [opts]
  * @returns {Promise<any>}
  */
-async function generateJSON(prompt, opts) {
-  const raw = (await generateText(prompt, opts)).trim();
-  const cleaned = raw
-    .replace(/^```json\s*/i, '')
-    .replace(/^```\s*/i, '')
-    .replace(/```$/i, '')
-    .trim();
+async function generateJSON(prompt, opts = {}) {
+  const { text: raw, finishReason } = await callGemini(
+    [{ role: 'user', parts: [{ text: prompt }] }],
+    { ...opts, jsonMode: true },
+  );
 
-  try {
-    return JSON.parse(cleaned);
-  } catch (parseErr) {
-    const err = new Error(`Gemini did not return valid JSON: ${parseErr.message}`);
-    err.status = 502;
-    throw err;
+  const candidates = [raw.trim(), stripCodeFences(raw).trim()];
+  const balanced = extractBalancedJSON(raw);
+  if (balanced) candidates.push(balanced);
+
+  let lastErr;
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate);
+    } catch (e) {
+      lastErr = e;
+    }
+    try {
+      return JSON.parse(repairTrailingCommas(candidate));
+    } catch (e) {
+      lastErr = e;
+    }
   }
+
+  const truncated = finishReason === 'MAX_TOKENS' || balanced === null;
+  const err = new Error(
+    truncated
+      ? `Gemini response was truncated before valid JSON completed (finishReason=${finishReason}): ${lastErr.message}`
+      : `Gemini did not return valid JSON: ${lastErr.message}`,
+  );
+  err.status = 502;
+  err.truncated = truncated;
+  err.raw = raw;
+  throw err;
 }
 
 /**
