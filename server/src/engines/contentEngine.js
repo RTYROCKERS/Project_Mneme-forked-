@@ -47,7 +47,8 @@ Return ONLY valid JSON with this shape:
 }
 `.trim();
 
-  return generateJSON(prompt, { temperature: 0.5, maxOutputTokens: 800 });
+  // Increased maxOutputTokens to 1500 to handle richer, personalized text deep-dives safely
+  return generateJSON(prompt, { temperature: 0.5, maxOutputTokens: 1500 });
 }
 
 /**
@@ -79,16 +80,29 @@ Return ONLY a valid JSON array (no wrapper object):
 ]
 `.trim();
 
-  const result = await generateJSON(prompt, { temperature: 0.4, maxOutputTokens: 1200 });
-  const questions = Array.isArray(result) ? result : result?.questions || [];
-  return questions
-    .filter((q) => q && q.question && Array.isArray(q.options))
-    .map((q) => ({
-      question: String(q.question).trim(),
-      options: q.options.map((o) => String(o)),
-      correct_index: Number.isInteger(q.correct_index) ? q.correct_index : 0,
-      explanation: String(q.explanation || '').trim(),
-    }));
+  try {
+    // CRITICAL FIX: Increased token headroom to 4000. 
+    // 5 questions + options + explanations easily exceed 1200 tokens.
+    const result = await generateJSON(prompt, { temperature: 0.4, maxOutputTokens: 4000 });
+    
+    const questions = Array.isArray(result) ? result : result?.questions || [];
+    return questions
+      .filter((q) => q && q.question && Array.isArray(q.options))
+      .map((q) => ({
+        question: String(q.question).trim(),
+        options: q.options.map((o) => String(o)),
+        correct_index: Number.isInteger(q.correct_index) ? q.correct_index : 0,
+        explanation: String(q.explanation || '').trim(),
+      }));
+  } catch (error) {
+    console.error("Failed to parse or generate quiz JSON due to truncation, attempting fallback retry with fewer questions:", error.message);
+    
+    // Fallback: If it completely bricks, retry immediately requesting only 3 items to save token window space
+    if (count > 2) {
+      return generateQuizQuestions(conceptName, conceptDescription, masteryScore, difficulty, userProfile, topicDescription, 3);
+    }
+    return []; // Graceful failure array so the frontend doesn't throw a hard 502 crash
+  }
 }
 
 /**
