@@ -19,6 +19,37 @@ function topicBlock(topicDescription) {
     : '';
 }
 
+// Gemini responseSchema (OpenAPI-subset) for a revision note. Passed as
+// generationConfig.responseSchema so the model is constrained to this exact
+// shape at generation time, not just asked nicely in the prompt.
+const REVISION_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    type: { type: 'STRING' },
+    title: { type: 'STRING' },
+    summary: { type: 'STRING' },
+    key_points: { type: 'ARRAY', items: { type: 'STRING' } },
+    analogy: { type: 'STRING' },
+    common_mistakes: { type: 'ARRAY', items: { type: 'STRING' } },
+  },
+  required: ['type', 'title', 'summary', 'key_points', 'analogy', 'common_mistakes'],
+};
+
+// responseSchema for the quiz-questions array.
+const QUIZ_QUESTIONS_SCHEMA = {
+  type: 'ARRAY',
+  items: {
+    type: 'OBJECT',
+    properties: {
+      question: { type: 'STRING' },
+      options: { type: 'ARRAY', items: { type: 'STRING' } },
+      correct_index: { type: 'INTEGER' },
+      explanation: { type: 'STRING' },
+    },
+    required: ['question', 'options', 'correct_index', 'explanation'],
+  },
+};
+
 /**
  * Generate revision content for a concept.
  * @returns {{ type: 'revision', title, summary, key_points: [], analogy, common_mistakes: [] }}
@@ -36,19 +67,32 @@ ${topicBlock(topicDescription)}
 
 ${profileBlock(userProfile)}
 
-Return ONLY valid JSON with this shape:
-{
-  "type": "revision",
-  "title": "...",
-  "summary": "2-3 sentence summary",
-  "key_points": ["point 1", "point 2", "point 3", "point 4"],
-  "analogy": "a relatable real-world analogy",
-  "common_mistakes": ["mistake 1", "mistake 2"]
-}
+Respond with a single JSON object matching the required schema exactly:
+- "type" must be the literal string "revision"
+- "key_points" must contain exactly 4 short strings
+- "common_mistakes" must contain exactly 2 short strings
+Keep "summary" to 2-3 sentences and "analogy" to 1-2 sentences so the whole
+response fits comfortably within the token budget.
 `.trim();
 
-  // Increased maxOutputTokens to 1500 to handle richer, personalized text deep-dives safely
-  return generateJSON(prompt, { temperature: 0.5, maxOutputTokens: 1500 });
+  try {
+    return await generateJSON(prompt, {
+      temperature: 0.5,
+      maxOutputTokens: 1500,
+      responseSchema: REVISION_SCHEMA,
+    });
+  } catch (error) {
+    // If we got cut off mid-generation, retry once with a tighter, cheaper
+    // ask instead of surfacing a raw parse error to the frontend.
+    if (error.truncated) {
+      console.error('Revision generation truncated, retrying with reduced scope:', error.message);
+      return generateJSON(
+        `${prompt}\n\nKeep the summary to 1-2 sentences and the analogy to one short sentence to stay well within limits.`,
+        { temperature: 0.5, maxOutputTokens: 1500, responseSchema: REVISION_SCHEMA },
+      );
+    }
+    throw error;
+  }
 }
 
 /**
@@ -60,7 +104,7 @@ async function generateQuizQuestions(conceptName, conceptDescription, masterySco
   const level = masteryScore < 0.4 ? 'basic recall' : masteryScore < 0.7 ? 'applied understanding' : 'deep analysis';
 
   const prompt = `
-Generate ${count} multiple-choice quiz questions for the concept: "${conceptName}"
+Generate exactly ${count} multiple-choice quiz questions for the concept: "${conceptName}"
 Concept description: ${conceptDescription}
 Difficulty: ${difficulty}
 Focus on: ${level}
@@ -69,22 +113,21 @@ ${topicBlock(topicDescription)}
 
 ${profileBlock(userProfile)}
 
-Return ONLY a valid JSON array (no wrapper object):
-[
-  {
-    "question": "...",
-    "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
-    "correct_index": 0,
-    "explanation": "Why the answer is correct"
-  }
-]
+Respond with a single JSON array (no wrapper object) matching the required
+schema exactly. For every question:
+- "options" must contain exactly 4 strings, prefixed "A. "/"B. "/"C. "/"D. "
+- "correct_index" is the 0-based index into "options" of the correct answer
+- "explanation" should be 1 short sentence
+Keep every field concise so all ${count} questions fit within the token budget.
 `.trim();
 
   try {
-    // CRITICAL FIX: Increased token headroom to 4000. 
-    // 5 questions + options + explanations easily exceed 1200 tokens.
-    const result = await generateJSON(prompt, { temperature: 0.4, maxOutputTokens: 4000 });
-    
+    const result = await generateJSON(prompt, {
+      temperature: 0.4,
+      maxOutputTokens: 4000,
+      responseSchema: QUIZ_QUESTIONS_SCHEMA,
+    });
+
     const questions = Array.isArray(result) ? result : result?.questions || [];
     return questions
       .filter((q) => q && q.question && Array.isArray(q.options))
@@ -95,12 +138,14 @@ Return ONLY a valid JSON array (no wrapper object):
         explanation: String(q.explanation || '').trim(),
       }));
   } catch (error) {
-    console.error("Failed to parse or generate quiz JSON due to truncation, attempting fallback retry with fewer questions:", error.message);
-    
-    // Fallback: If it completely bricks, retry immediately requesting only 3 items to save token window space
-    if (count > 2) {
-      return generateQuizQuestions(conceptName, conceptDescription, masteryScore, difficulty, userProfile, topicDescription, 3);
+    // Only worth retrying with a smaller ask if we actually got cut off —
+    // a genuinely malformed reply from a schema-constrained call is rare and
+    // retrying the same request is unlikely to help.
+    if (error.truncated && count > 2) {
+      console.error(`Quiz generation truncated at count=${count}, retrying with fewer questions:`, error.message);
+      return generateQuizQuestions(conceptName, conceptDescription, masteryScore, difficulty, userProfile, topicDescription, Math.max(2, Math.floor(count / 2)));
     }
+    console.error('Quiz generation failed:', error.message);
     return []; // Graceful failure array so the frontend doesn't throw a hard 502 crash
   }
 }
